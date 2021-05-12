@@ -4,13 +4,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-void fillTree();
+int fillTree();
 int checkPrime();
 int returnMaxChild();
 int findMaxPath();
 
 struct node {
     int data;
+    int onPath;
     struct node* left;
     struct node* right;
 };
@@ -19,6 +20,7 @@ struct node* newNode(int data)
 {
     struct node* node = (struct node*)malloc(sizeof(struct node));
     node->data = data;
+    node->onPath = 0;
     node->left = NULL;
     node->right = NULL;
     return (node);
@@ -93,24 +95,30 @@ int main()
 //among the input numbers. The parameters are the start point of the input numbers' tree and a node having 
 //a node having created for a start point of the new tree, which will then, grow downwards, recursively. 
 //It does not create children nodes for ITSELF(accumulation tree) unless both children
-//nodes (in the original input tree) are prime number. 
-void fillTree(struct node *input, struct node *tree) {
-
+//nodes (in the original input tree) are prime number. It also updates the boolean field of nodes,
+//permitting us to determine if the node is on the path from top reaching to bottom
+int fillTree(struct node *input, struct node *tree) {
     if (input->left != NULL && input->right != NULL) {
         if ((checkPrime(input->left->data))&&(checkPrime(input->right->data))) {     //in case of both children with prime numbers, do nothing, stop
-            
+            return 0;
         } else if (checkPrime(input->left->data)) {                                  //in case of one child with prime number, update the value of this node
             tree->data += input->right->data;                                        //with the value itself plus the value of other non-prime child.
-            fillTree(input->right, tree);                                            //Thnaks to that, we accumulate the sum until encountering a seperation.
-        } else if (checkPrime(input->right->data)) {                                 //Then call itself recursively on the non-prime child.
+            tree->onPath = fillTree(input->right, tree);                             //Thnaks to that, we accumulate the sum until encountering a seperation.
+            return tree->onPath;                                                     //Then call itself recursively on the non-prime child.
+        } else if (checkPrime(input->right->data)) {                                 
             tree->data += input->left->data;
-            fillTree(input->left, tree);
+            tree->onPath = fillTree(input->left, tree);
+            return tree->onPath;
         } else {                                                                     //in case of both children with non-prime numbers, it is time to 
             tree->left = newNode(input->left->data);                                 //grow through different paths downwards.
             tree->right = newNode(input->right->data);
-            fillTree(input->left, tree->left);
-            fillTree(input->right, tree->right);
+            tree->onPath += fillTree(input->left, tree->left);
+            tree->onPath += fillTree(input->right, tree->right);
+            return tree->onPath;
         }
+    } else {
+        tree->onPath = 1;
+        return tree->onPath;
     }
 }
 
@@ -126,10 +134,20 @@ int checkPrime(int x) {
 
 //For a node which has two children, this function returns the maximum among the children
 int returnMaxChild(struct node *node) {
-    if (node->left->data >= node->right->data) {
-        return node->left->data;
+    if (node->onPath > 0) {         //this line is just for checking the first node
+        if (node->left->onPath > 0 && node->right->onPath > 0) {
+            if (node->left->data >= node->right->data) {
+                return node->left->data;
+            } else {
+                return node->right->data;
+            }
+        } else if (node->left->onPath > 0) {        //controls for the node if it is on the path from top to bottom
+            return node->left->data;
+        } else if (node->right->data > 0) {
+            return node->right->data;
+        } else return node->data;
     } else {
-        return node->right->data;
+        return 0;
     }
 }
 
@@ -139,10 +157,10 @@ int returnMaxChild(struct node *node) {
 int findMaxPath(struct node *node) {
     if (node->left->left == NULL && node->right->right == NULL) {       //for the parent of both-childless nodes
         return returnMaxChild(node);
-    } else if (node->left->left == NULL) {                              //for the parent of one child-less node (left one is childless)
+    } else if (node->left->left == NULL) {                              //for the parent of one childless node (left one is childless)
         node->right->data += findMaxPath(node->right);
         return returnMaxChild(node);
-    } else if (node->right->right == NULL) {                            //for the parent of one child-less node (right one is childless)
+    } else if (node->right->right == NULL) {                            //for the parent of one childless node (right one is childless)
         node->left->data += findMaxPath(node->left);
         return returnMaxChild(node);
     } else {
